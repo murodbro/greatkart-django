@@ -1,51 +1,52 @@
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.paginator import Paginator
+from django.http import Http404
+
 from category.models import Category
 from carts.models import CartItem
 from carts.views import _cart_id
+
 from .models import Product
 
 
 
 def store(request, category_slug=None):
-    categories = None
-    products = None
+    products = Product.objects.filter(is_available=True)
 
-    if category_slug != None:
-        categories = get_object_or_404(Category, slug=category_slug)
-        products = Product.objects.filter(category=categories, is_available=True)
-        paginator = Paginator(products, 1)
-        page = request.GET.get('page')
-        paged_products = paginator.get_page(page)
-        product_count = products.count()
-    else:
-        products = Product.objects.all().filter(is_available=True).order_by('id')
-        paginator = Paginator(products, 3)
-        page = request.GET.get('page')
-        paged_products = paginator.get_page(page)
-        product_count = products.count()
+    if category_slug is not None:
+        category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=category)
+    
+    products = products.order_by("-id")
+    paginator = Paginator(products, 6)
+    paged_products = paginator.get_page(request.GET.get("page"))
+    product_count = products.count()
 
     context = {
         "products": paged_products,
         "product_count": product_count
     }
-
-    return render(request, 'store/store.html', context)
+    return render(request, "store/store.html", context)
 
 
 def product_detail(request, category_slug, product_slug):
     try:
-        single_product = Product.objects.get(category__slug=category_slug, slug=product_slug)
-        in_cart = CartItem.objects.filter(cart__cart_id=_cart_id(request), product=single_product).exists()
-    except Exception as e:
-        raise e
+        product = Product.objects.get(
+            category__slug=category_slug,
+            slug=product_slug
+        )
+    except Product.DoesNotExist as e:
+        raise Http404()
     
     context = {
-        'single_product': single_product,
-        'in_cart': in_cart
+        'product': product,
+        "out_of_stock": product.stock == 0,
+        'in_cart': CartItem.objects.filter(
+            cart__cart_id=_cart_id(request),
+            product=product,
+        ).exists()
     }
-
     return render(request, 'store/product_detail.html', context)
 
 
