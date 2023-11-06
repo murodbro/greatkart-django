@@ -12,6 +12,9 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
 from django.shortcuts import redirect, render
 
+from carts.models import Cart, CartItem
+from carts.views import _cart_id
+
 from.forms import RegistrationForm
 from .models import Account
 
@@ -21,33 +24,40 @@ def register(request):
     if request.method == "POST":
         form = RegistrationForm(request.POST)
         if form.is_valid():
-            first_name = form.cleaned_data['first_name']
-            last_name = form.cleaned_data['last_name']
-            email = form.cleaned_data['email']
-            phone_number = form.cleaned_data['phone_number']
-            password = form.cleaned_data['password']
-            username = email.split('@')[0]
+            try:
+                with transaction.atomic():
+                    first_name = form.cleaned_data['first_name']
+                    last_name = form.cleaned_data['last_name']
+                    email = form.cleaned_data['email']
+                    phone_number = form.cleaned_data['phone_number']
+                    password = form.cleaned_data['password']
+                    username = email.split('@')[0]
 
-            user = Account.objects.create_user(
-                                first_name=first_name,
-                                last_name=last_name,
-                                email=email,
-                                password=password,
-                                username=username
-                                )
-            user.phone_number = phone_number
-            user.save()
+                    user = Account.objects.create_user(
+                                        first_name=first_name,
+                                        last_name=last_name,
+                                        email=email,
+                                        password=password,
+                                        username=username
+                                        )
+                    user.phone_number = phone_number
+                    user.save()
 
-            current_site = get_current_site(request)
-            mail_subject = "Please activate your account!"
-            message = render_to_string('accounts/account_verification_email.html', {
-                'user': user,
-                'domain': current_site,
-                'uid': urlsafe_base64_encode(force_bytes(user.id)),
-                'token': default_token_generator.make_token(user),
-            })
-            send_email = EmailMessage(mail_subject, message, to=[email])
-            send_email.send()
+                    current_site = get_current_site(request)
+                    mail_subject = "Please activate your account!"
+                    message = render_to_string('accounts/account_verification_email.html', {
+                        'user': user,
+                        'domain': current_site,
+                        'uid': urlsafe_base64_encode(force_bytes(user.id)),
+                        'token': default_token_generator.make_token(user),
+                    })
+                    send_email = EmailMessage(mail_subject, message, to=[email])
+                    send_email.send()
+            except Exception as e:
+                    transaction.set_rollback(True)
+                    messages.error(request, 'An error occurred during registration.')
+                    return redirect('register')
+            
             messages.success(request, 'Thank you for registering with us. We have s sent email verification to your email address. Please verify it.')
             return redirect('/accounts/login/?command=verification&email='+email)
     else:
@@ -67,6 +77,18 @@ def login(request):
         user = auth.authenticate(email=email, password=password)
 
         if user:
+            try:
+                cart = Cart.objects.get(cart_id = _cart_id(request))
+                is_cart_item_exists = CartItem.objects.filter(cart=cart).exists()
+                if is_cart_item_exists:
+                    cart_item = CartItem.objects.filter(cart=cart)
+
+                    for item in cart_item:
+                        item.user = user
+                        item.save()
+
+            except Cart.DoesNotExist:
+                pass
             auth.login(request, user)
             messages.success(request, 'You are now logged in!')
             return redirect('dashboard')
