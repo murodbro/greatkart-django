@@ -1,3 +1,6 @@
+from pytest import param
+import requests
+
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.sites.shortcuts import get_current_site as get_host_site
@@ -93,15 +96,50 @@ def login(request):
             if is_cart_item_exists:
                 cart_item = CartItem.objects.filter(cart=cart)
 
+                product_variation = []
                 for item in cart_item:
-                    item.user = user
-                    item.save()
+                    variations = item.variations.all()
+                    product_variation.append(list(variations))
+
+                cart_item = CartItem.objects.filter(user=user)
+                exist_variations = []
+                id = []
+
+                for item in cart_item:
+                    existing_variations = item.variations.all()
+                    exist_variations.append(list(existing_variations))
+                    id.append(item.id)
+                
+                for i in product_variation:
+                    if i in exist_variations:
+                        index = exist_variations.index(i)
+                        item_id = id[index]
+                        item = CartItem.objects.get(id=item_id)
+                        item.quantity += 1
+                        item.user = user
+                        item.save()
+
+                    else:
+                        cart_item = CartItem.objects.filter(cart=cart)
+                        for item in cart_item:
+                            item.user = user
+                            item.save()
 
         except Cart.DoesNotExist:
             pass
+
         auth.login(request, user)
         messages.success(request, 'You are now logged in!')
-        return redirect('dashboard')
+        url = request.META.get('HTTP_REFERER')
+        try:
+            query = requests.utils.urlparse(url).query
+            params = dict(x.split('=') for x in query.split('&'))
+
+            if "next" in params:
+                next_page = params["next"]
+                return redirect(next_page)
+        except:
+            return redirect('dashboard')
             
     return render(request, 'accounts/login.html')
 
