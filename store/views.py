@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import Http404
@@ -11,26 +11,23 @@ from .models import Product
 
 
 
-def store(request, category_slug=None):
+def store_view(request, category_slug=None):
     products = Product.objects.filter(is_available=True)
 
     if category_slug is not None:
         category = get_object_or_404(Category, slug=category_slug)
         products = products.filter(category=category)
     
-    products = products.order_by("-id")
-    paginator = Paginator(products, 6)
-    paged_products = paginator.get_page(request.GET.get("page"))
-    product_count = products.count()
+    paginator = Paginator(products.order_by("-id"), 6)
 
     context = {
-        "products": paged_products,
-        "product_count": product_count
+        "products": paginator.get_page(request.GET.get("page")),
+        "product_count": products.count()
     }
     return render(request, "store/store.html", context)
 
 
-def product_detail(request, category_slug, product_slug):
+def product_detail_view(request, category_slug, product_slug):
     try:
         product = Product.objects.get(
             category__slug=category_slug,
@@ -50,14 +47,18 @@ def product_detail(request, category_slug, product_slug):
     return render(request, 'store/product_detail.html', context)
 
 
-def search(request):
-    if 'keyword' in request.GET:
-        keyword = request.GET['keyword']
-        if keyword:
-            products = Product.objects.order_by('-created_date').filter(Q(description__icontains=keyword) | Q(product_name__icontains=keyword))
-            product_count = products.count()
+def search_view(request):
+    search_term = request.GET.get("keyword")
+    if not search_term:
+        return redirect("store")
+
+    products = Product.objects.filter(
+        Q(description__icontains=search_term)
+        | Q(product_name__icontains=search_term)
+    ).order_by('-created_date')
+
     context = {
         "products": products,
-        "product_count": product_count
+        "product_count": products.count()
     }
     return render(request, 'store/store.html', context)

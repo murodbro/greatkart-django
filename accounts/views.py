@@ -1,4 +1,3 @@
-from pytest import param
 import requests
 
 from django.contrib import messages, auth
@@ -24,27 +23,19 @@ from .models import Account
 
 @transaction.atomic()
 def register_account(data: dict) -> Account:
-    first_name = data['first_name']
-    last_name = data['last_name']
-    email = data['email']
-    phone_number = data['phone_number']
-    password = data['password']
+    password = data.pop("password")
     username = data['email'].split('@')[0]
 
-    user = Account.objects.create_user(
-                        first_name=first_name,
-                        last_name=last_name,
-                        email=email,
-                        password=password,
-                        username=username
-                        )
-    user.phone_number = phone_number
+    user = Account(
+        **data,
+        username=username
+    )
+    user.set_password(password)
     user.save()
-
     return user
 
 
-def send_account_verification_email(user: Account, host_site: str, form_email):
+def send_account_verification_email(user: Account, host_site: str, receivers):
     mail_subject = "Please activate your account!"
     message = render_to_string('accounts/account_verification_email.html', {
         'user': user,
@@ -52,96 +43,97 @@ def send_account_verification_email(user: Account, host_site: str, form_email):
         'uid': urlsafe_base64_encode(force_bytes(user.id)),
         'token': default_token_generator.make_token(user),
     })
-    send_email = EmailMessage(mail_subject, message, to=[form_email])
+    send_email = EmailMessage(mail_subject, message, to=receivers)
     send_email.send()
 
 
 def register(request):
     form = RegistrationForm()
 
-    if request.method == "POST":
-        form = RegistrationForm(request.POST)
+    if request.method != "POST":
+        return render(request, 'accounts/register.html', {"form": form})
 
-        if form.is_valid():
-            user = register_account(data=form.cleaned_data)
-            site = get_host_site(request)
-            send_account_verification_email(user=user, host_site=site, form_email=form.cleaned_data['email'])
-                    
-            messages.success(request, 'Thank you for registering with us. We have s sent email verification to your email address. Please verify it.')
-            return redirect('/accounts/login/?command=verification&email='+form.cleaned_data['email'])
-        
+    form = RegistrationForm(request.POST)
+
+    if not form.is_valid():
         messages.error(request, 'An error occurred during registration.')
         return redirect('register')
 
-    context = {
-        "form": form
-    }
+    user = register_account(data=form.cleaned_data)
+    email = form.cleaned_data['email']
 
-    return render(request, 'accounts/register.html', context)
+    send_account_verification_email(
+        user=user,
+        host_site=get_host_site(request),
+        receivers=[email]
+    )
+
+    messages.success(
+        request,
+        'Thank you for registering with us. \
+        We have s sent email verification to your email\
+         address. Please verify it.'
+    )
+    return redirect(f'/accounts/login/?command=verification&email={email}')
 
 
 def login(request):
-    if request.method == "POST":
-        email = request.POST["email"]
-        password = request.POST["password"]
-        user = auth.authenticate(email=email, password=password)
+    if request.method != "POST":
+        return render(request, 'accounts/login.html')
 
-        if not user:
-            messages.error(request, "Invalid login credentials")
-            return redirect("login")
+    user = auth.authenticate(**request.POST)
 
-        try:
-            cart = Cart.objects.get(cart_id = _cart_id(request))
-            is_cart_item_exists = CartItem.objects.filter(cart=cart).exists()
-            if is_cart_item_exists:
-                cart_item = CartItem.objects.filter(cart=cart)
+    if not user:
+        messages.error(request, "Invalid login credentials")
+        return redirect("login")
 
-                product_variation = []
-                for item in cart_item:
-                    variations = item.variations.all()
-                    product_variation.append(list(variations))
+    cart = Cart.objects.filter(cart_id=_cart_id(request)).first()
 
-                cart_item = CartItem.objects.filter(user=user)
-                exist_variations = []
-                id = []
+    if cart:
+        cart_items = CartItem.objects.filter(cart=cart)
+        if cart_items.exists():
 
-                for item in cart_item:
-                    existing_variations = item.variations.all()
-                    exist_variations.append(list(existing_variations))
-                    id.append(item.id)
-                
-                for i in product_variation:
-                    if i in exist_variations:
-                        index = exist_variations.index(i)
-                        item_id = id[index]
-                        item = CartItem.objects.get(id=item_id)
-                        item.quantity += 1
+            product_variation = []
+            for item in cart_items:
+                variations = item.variations.all()
+                product_variation.append(list(variations))
+
+            cart_items = CartItem.objects.filter(user=user)
+            exist_variations = []
+            id = []
+
+            for item in cart_items:
+                existing_variations = item.variations.all()
+                exist_variations.append(list(existing_variations))
+                id.append(item.id)
+            
+            for i in product_variation:
+                if i in exist_variations:
+                    index = exist_variations.index(i)
+                    item_id = id[index]
+                    item = CartItem.objects.get(id=item_id)
+                    item.quantity += 1
+                    item.user = user
+                    item.save()
+
+                else:
+                    cart_items = CartItem.objects.filter(cart=cart)
+                    for item in cart_items:
                         item.user = user
                         item.save()
 
-                    else:
-                        cart_item = CartItem.objects.filter(cart=cart)
-                        for item in cart_item:
-                            item.user = user
-                            item.save()
+    auth.login(request, user)
+    messages.success(request, 'You are now logged in!')
+    url = request.META.get('HTTP_REFERER')
 
-        except Cart.DoesNotExist:
-            pass
+    parts = url.split("?")[-1].split("&")
+    for part in parts:
+        if "next" in part:
+            return redirect(part.split("=")[-1])
+    
+    return redirect('dashboard')
+        
 
-        auth.login(request, user)
-        messages.success(request, 'You are now logged in!')
-        url = request.META.get('HTTP_REFERER')
-        try:
-            query = requests.utils.urlparse(url).query
-            params = dict(x.split('=') for x in query.split('&'))
-
-            if "next" in params:
-                next_page = params["next"]
-                return redirect(next_page)
-        except:
-            return redirect('dashboard')
-            
-    return render(request, 'accounts/login.html')
 
 
 def activate(request, uidb64, token):
