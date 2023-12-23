@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from category.models import Category
 
@@ -33,13 +34,12 @@ class VariationManager(models.Manager):
     
 
 class Variation(models.Model):
-    VARIATION_CATEGORY_CHOICES = [
-        ("color", "color"),
-        ("size", "size")
-    ]
+    class VariationCategory(models.TextChoices):
+        COLOR = ("color", _("Rang"))
+        SIZE =  ("size", _("O'lcham"))
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    variation_category = models.CharField(max_length=255, choices=VARIATION_CATEGORY_CHOICES)
+    variation_category = models.CharField(max_length=255, choices=VariationCategory.choices)
     variation_value = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     created_date = models.DateTimeField(auto_now=True)

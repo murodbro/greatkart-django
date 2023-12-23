@@ -81,7 +81,9 @@ def login(request):
     if request.method != "POST":
         return render(request, 'accounts/login.html')
 
-    user = auth.authenticate(**request.POST)
+    # user = auth.authenticate(**request.POST)
+    user = auth.authenticate(email=request.POST['email'], password=request.POST['password'])
+
 
     if not user:
         messages.error(request, "Invalid login credentials")

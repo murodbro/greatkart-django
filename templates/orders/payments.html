@@ -4,6 +4,7 @@
 {% block content %}
   <section class="section-content padding-y bg">
     <div class="container">
+      <h4 class="text-center mb-10">Review Your Order and Make Payment</h4>
       <div class="row">
         <aside class="col-lg-8">
           <div class="card">
@@ -19,13 +20,13 @@
                 <b>Order Note:</b> {{ order.order_note }}
               {% endif %}
             </div>
-          </div> <!-- card.// -->
+          </div>
           <div class="card">
             <h5 class="card-header">Payment Method</h5>
             <div class="card-body">
               <p class="card-text">PayPal</p>
             </div>
-          </div> <!-- card.// -->
+          </div>
           <div class="card">
             <h5 class="card-header">Rewiev Products</h5>
             <div class="card-body">
@@ -35,7 +36,6 @@
                     <th scope="col">Product</th>
                     <th scope="col" width="120">Quantity</th>
                     <th scope="col" width="120">Price</th>
-                    <th scope="col" class="text-right" width="200"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -59,45 +59,21 @@
                         </figure>
                       </td>
                       <td>
-                        <!-- col.// -->
-                        <div class="col">
-                          <div class="input-group input-spinner">
-                            <div class="input-group-prepend">
-                              <form action="{% url 'remove_cart' cart_item.product.id cart_item.id %}">
-                                <button class="btn btn-light" type="submit" id="button-plus"><i class="fa fa-minus"></i></button>
-                              </form>
-                            </div>
-                            <form action="">
-                              <input type="text" class="form-control" value="{{ cart_item.quantity }}" />
-                            </form>
-                            <div class="input-group-append">
-                              <form action="{% url 'add_cart' cart_item.product.id %}" method="post">
-                                {% csrf_token %}
-                                {% for item in cart_item.variations.all %}
-                                  <input type="hidden" name="{{ item.variation_category|lower }}" value="{{ item.variation_value|capfirst }}" />
-                                {% endfor %}
-                                <button class="btn btn-light" type="submit" id="button-minus"><i class="fa fa-plus"></i></button>
-                              </form>
-                            </div>
-                          </div> <!-- input-group.// -->
-                        </div> <!-- col.// -->
+                        <label for="">{{ cart_item.quantity }}</label>
                       </td>
                       <td>
                         <div class="price-wrap">
                           <var class="price">$ {{ cart_item.sub_total }}</var>
                           <small class="text-muted">$ {{ cart_item.product.price }} each</small>
-                        </div> <!-- price-wrap .// -->
-                      </td>
-                      <td class="text-right">
-                        <a href="{% url 'remove_cart_item' cart_item.product.id cart_item.id %}" onclick="return confirm('Are you sure you want to remove that item ?')" class="btn btn-danger">Remove</a>
+                        </div>
                       </td>
                     </tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
-          </div> <!-- card.// -->
-        </aside> <!-- col.// -->
+          </div>
+        </aside>
         <aside class="col-lg-4">
           <div class="card">
             <div class="card-body">
@@ -113,15 +89,58 @@
                 <dt>Total:</dt>
                 <dd class="text-right text-dark b"><strong>$ {{ grand_total }}</strong></dd>
               </dl>
-              <hr />
+            </hr>
               <p class="text-center mb-3">
                 <img src="{% static './images/misc/payments.png' %}" height="26" />
               </p>
-              <a href="{% url 'checkout' %}" class="btn btn-primary btn-block">Make Payment</a>
+              <div class="text-center">
+                <button class="btn btn-outline-primary btn-block" id="makePaymentbtn">Make Payment</button>
+              </div>
             </div>
           </div>
         </aside>
       </div>
     </div>
   </section>
+  <script type="text/javascript">
+    function getCookie(name) {
+      let cookieValue = null
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';')
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim()
+    
+          if (cookie.substring(0, name.length + 1) === name + '=') {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
+            break
+          }
+        }
+      }
+      return cookieValue
+    }
+    
+    const stripe = Stripe('pk_test_51OBCZHAOoy956r2xyruMO8OPOq1Vzicu42s2fjDdhuxIxgvZeD09lwdTPQ4RUHSSL8DbHgHgpiqVzGHo3AzPUdpo005gQYPVlM')
+    var checkoutUrl = "{% url 'create_checkout_session' %}"
+    var csrftoken = getCookie('csrftoken')
+    var orderID = '{{order.order_number}}'
+    
+    function redirectToCheckout(session_id){
+      stripe.redirectToCheckout({ sessionId: session_id })
+    }
+
+    function handleMakePayment(){
+      fetch(checkoutUrl, {
+        method: "post",
+        headers: {
+          "Content-type": "application/json",
+          "X-CSRFToken": csrftoken,
+        },
+        body: JSON.stringify({
+          "order_id": orderID,
+        })
+      }).then((res) => res.json()).then((data) => redirectToCheckout(data.session_id));
+    }
+
+    document.getElementById("makePaymentbtn").addEventListener("click", handleMakePayment);
+    </script>
 {% endblock %}
