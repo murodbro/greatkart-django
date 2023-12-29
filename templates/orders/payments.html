@@ -123,6 +123,7 @@
     var checkoutUrl = "{% url 'create_checkout_session' %}"
     var csrftoken = getCookie('csrftoken')
     var orderID = '{{order.order_number}}'
+    var makePaymentbtn = document.getElementById("makePaymentbtn")
     
     function redirectToCheckout(session_id){
       stripe.redirectToCheckout({ sessionId: session_id })
@@ -141,6 +142,10 @@
       }).then((res) => res.json()).then((data) => redirectToCheckout(data.session_id));
     }
 
-    document.getElementById("makePaymentbtn").addEventListener("click", handleMakePayment);
+    makePaymentbtn.addEventListener("click", handleMakePayment);
+    
+    makePaymentbtn.addEventListener("click", function(){
+      makePaymentbtn.disabled = true;
+    })
     </script>
 {% endblock %}

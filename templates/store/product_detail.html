@@ -40,7 +40,24 @@
     .rating-stars span{
         color: #ffb503;
     }
+
+    ul.thumb {
+        margin: 0 auto;
+        padding: 0;
+        float: left;
+    }
+
+    ul.thumb li{
+        list-style: none;
+        margin: 10px;
+    }
     
+    ul.thumb li img{
+        width: 80px;
+        height: 80px;
+        border: 1px solid grey;
+    }
+     
     
 </style>
 <section class="section-content padding-y bg">
@@ -50,10 +67,20 @@
             <div class="row no-gutters">
                 <aside class="col-md-6">
                     <article class="gallery-wrap">
-                        <div class="img-big-wrap">
-                            <a href="#"><img src="{{ product.images.url }}"></a>
+                        <div class="img-big-wrap mainImage">
+                            <center>
+                                <img src="{{ product.images.url }}">
+                            </center>
                         </div> <!-- img-big-wrap.// -->
-                    </article> <!-- gallery-wrap .end// -->
+                    </article>
+                    <ul class="thumb">
+                        <li>
+                            <a href="{{ product.images.url }}" target="mainImage"><img src="{{ product.images.url }}" alt="Product Image"></a>
+                            {% for i in product_gallery %}
+                            <a href="{{i.image.url}}" target="mainImage"><img src="{{i.image.url}}" alt="Product Image"></a>
+                            {% endfor %}
+                        </li>
+                    </ul> 
                 </aside>
                 <main class="col-md-6 border-left">
                     <form action="{% url 'add_cart' product.id %}" method="post"> 

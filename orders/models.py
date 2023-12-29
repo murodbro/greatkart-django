@@ -31,7 +31,7 @@ class Order(models.Model):
     ip = models.CharField(max_length=20, blank=True)
     is_ordered = models.BooleanField(default=False)
 
-    cretaed_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def full_name(self):
@@ -52,7 +52,7 @@ class OrderProduct(models.Model):
     product_price = models.FloatField()
     ordered = models.BooleanField(default=False)
     
-    cretaed_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

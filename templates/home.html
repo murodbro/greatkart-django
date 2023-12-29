@@ -3,11 +3,53 @@
 
 {% block content %}
   <!-- ========================= SECTION MAIN ========================= -->
+<style>
+  .rate > input {
+    display: none;
+}
+
+.rate {
+    display: inline-block;
+    border: 0;
+}
+
+.rate > label {
+    float: right;
+}
+
+.rate > label::before {
+    display: inline-block;
+    font-size: 1.1rem;
+    font-family: FontAwesome;
+    content: "\f005";
+    margin: 0;
+    padding: 0.3rem .2rem;
+    cursor: pointer;
+}
+
+.rate .half::before {
+    content: "\f089";
+    position: absolute;
+    padding-right: 0;
+}
+
+input:checked ~ label, label:hover ~ label{
+    color: #ffb503;
+}
+
+input:checked + label:hover, input:checked ~ label:hover, input:checked ~ label:hover ~ label, label:hover ~ input:checked ~ label{
+    color: #cc9000;
+}
+
+.rating-stars span{
+    color: #ffb503;
+}
+</style>
 
   <section class="section-intro padding-y-sm">
     <div class="container">
       <div class="intro-banner-wrap">
-        <img src="{% static 'images/banners/1.jpg' %}" class="img-fluid rounded" />
+        <img src="{% static 'images/banners/cover.jpg' %}" class="img-fluid rounded" />
       </div>
     </div> <!-- container // -->
   </section>
@@ -29,7 +71,73 @@
               <a href="{{ product.get_url }}" class="img-wrap"><img src="{{ product.images.url }}" /></a>
               <figcaption class="info-wrap">
                 <a href="{{ product.get_url }}" class="title">{{ product.product_name }}</a>
-                <div class="price mt-1">$ {{ product.price }}</div> <!-- price-wrap.// -->
+                <div class="price mt-1">$ {{ product.price }}</div>
+                <div class="rating-stars">
+                  <span>
+                      {% if product.average_rating == 5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                      {% elif 4.5 <= product.average_rating and product.average_rating < 5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star-half-stroke"></i>
+                      {% elif 4 <= product.average_rating and product.average_rating < 4.5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 3.5 <= product.average_rating and product.average_rating < 4 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star-half-stroke"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 3 <= product.average_rating and product.average_rating < 3.5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 2.5 <= product.average_rating and product.average_rating < 3 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star-half-stroke"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 2 <= product.average_rating and product.average_rating < 2.5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 1.5 <= product.average_rating and product.average_rating < 2 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa fa-star-half-stroke"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif 0.5 < product.average_rating and product.average_rating < 1.5 %}
+                          <i class="fa fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% elif product.average_rating and product.average_rating <= 0.5 %}
+                          <i class="fa fa-star-half-stroke"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                          <i class="fa-regular fa-star"></i>
+                      {% endif %}
+                  </span>
+              </div>
+                 <!-- price-wrap.// -->
               </figcaption>
             </div>
           </div> <!-- col.// -->

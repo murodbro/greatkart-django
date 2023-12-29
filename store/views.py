@@ -10,7 +10,7 @@ from carts.views import _cart_id
 from orders.models import OrderProduct
 
 from .forms import ReviewForm
-from .models import Product, ReviewRating
+from .models import Product, ProductGallery, ReviewRating
 
 
 
@@ -45,10 +45,13 @@ def product_detail_view(request, category_slug, product_slug):
     else:
         orderproduct = None
 
-    reviews = ReviewRating.objects.filter(product_id=product.id, status=True)
+    reviews = ReviewRating.objects.order_by("-updated_at").filter(product_id=product.id, status=True)
+
+    product_gallery = ProductGallery.objects.filter(product_id=product.id)
     
     context = {
         'product': product,
+        'product_gallery': product_gallery,
         'reviews':reviews,
         'orderproduct': orderproduct,
         "out_of_stock": product.stock == 0,

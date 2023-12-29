@@ -1,5 +1,4 @@
-import requests
-
+from pickletools import read_uint1
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.sites.shortcuts import get_current_site as get_host_site
@@ -12,13 +11,15 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+import accounts
 
 from carts.models import Cart, CartItem
 from carts.views import _cart_id
+from orders.models import Order, OrderProduct
 
-from.forms import RegistrationForm
-from .models import Account
+from.forms import RegistrationForm, UserForm, UserProfileForm
+from .models import Account, UserProfile
 
 
 @transaction.atomic()
@@ -164,7 +165,16 @@ def logout(request):
 
 @login_required(login_url='login')
 def dashboard(request):
-    return render(request, 'accounts/dashboard.html')
+    user_profile = UserProfile.objects.filter(user=request.user).first()
+    orders = Order.objects.order_by("-created_at").filter(user_id=request.user.id, is_ordered=True)
+    orders_count = orders.count()
+
+    context = {
+        "orders_count": orders_count,
+        "user_profile": user_profile
+    }
+
+    return render(request, 'accounts/dashboard.html', context)
 
 
 def forgot_password(request):
@@ -229,3 +239,90 @@ def reset_password(request):
             return redirect("resetPassword")
     
     return render(request, 'accounts/resetPassword.html')
+
+
+@login_required(login_url='login')
+def my_orders(request):
+    orders = Order.objects.order_by("-created_at").filter(user=request.user, is_ordered=True)
+
+    context = {
+        "orders": orders
+    }
+
+    return render(request, "accounts/my_orders.html", context)
+
+
+@login_required(login_url='login')
+def edit_profile(request):
+    user_profile = UserProfile.objects.filter(user=request.user).first()
+
+    if request.method == "POST":
+        user_form = UserForm(request.POST, instance=request.user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=user_profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Your profile has been updated")
+            return redirect("edit_profile")
+        
+    else:
+        user_form = UserForm(instance=request.user)
+        profile_form = UserProfileForm(instance=user_profile)
+
+    context = {
+        "user_form": user_form,
+        "profile_form": profile_form,
+        "user_profile": user_profile
+    }
+
+    return render(request, "accounts/edit_profile.html", context)
+
+
+@login_required(login_url='login')
+def change_password(request):
+    if request.method == "POST":
+        current_password = request.POST["current_password"]
+        new_password = request.POST["new_password"]
+        confirm_password = request.POST["confirm_password"]
+
+        user = Account.objects.filter(username__exact=request.user.username).first()
+
+        if new_password == confirm_password:
+            success = user.check_password(current_password)
+
+            if success:
+                user.set_password(new_password)
+                user.save()
+                messages.success(request, "Password update successfully")
+                return redirect("change_password")
+            
+            else:
+                messages.error(request, "Please enter valid current password")
+                return redirect("change_password")
+            
+        else:
+            messages.error(request, "Password does not match")
+            return redirect("change_password")
+
+    return render(request, "accounts/change_password.html")
+
+
+
+@login_required(login_url="login")
+def order_detail(request, order_id):
+    order_detail = OrderProduct.objects.filter(order__order_number=order_id)
+    order = Order.objects.get(order_number=order_id)
+
+    subtotal = 0
+
+    for i in order_detail:
+        subtotal += i.product_price * i.quantity
+
+    context = {
+        "order_detail": order_detail,
+        "order": order,
+        "subtotal": subtotal
+    }
+
+    return render(request, "accounts/order_detail.html", context)

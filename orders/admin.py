@@ -11,7 +11,7 @@ class OrderProductInline(admin.TabularInline):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ["first_name", "email", "order_total", "is_ordered", "cretaed_at"]
+    list_display = ["first_name", "email", "order_total", "is_ordered", "created_at"]
     list_filter = ["status", "is_ordered"]
     search_fields = ["first_name", "last_name", "email", "phone"]
     list_per_page = 20
